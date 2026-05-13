@@ -13,26 +13,44 @@
 <script>
 // 기기 감지 — DOM 생성 전에 즉시 실행
 (function(){
+  var resizeTimeout;
+
   function detect(){
     var w = window.innerWidth || document.documentElement.clientWidth;
     var ua = navigator.userAgent || '';
     var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    
+    // iPadOS(MacIntel) 데스크탑 모드 및 iOS 기기 감지
     var isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     var isAndroid = /Android/i.test(ua);
-    var cls;
-    if(w <= 600 || (isTouch && (isIOS || isAndroid) && w <= 900)) cls = 'mode-mobile';
-    else if(w <= 1024) cls = 'mode-tablet';
-    else cls = 'mode-pc';
-    document.documentElement.className = cls;
-    document.documentElement.setAttribute('data-mode', cls.replace('mode-',''));
-    // 모바일 100vh 보정 — 주소창 높이 제외한 실제 뷰포트
-    if(cls === 'mode-mobile'){
-      var vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty('--vh', vh + 'px');
+    var cls = 'mode-pc'; // 기본값
+    
+    // 화면 크기 및 터치 여부에 따른 모드 분기
+    if(w <= 600 || (isTouch && (isIOS || isAndroid) && w <= 900)) {
+        cls = 'mode-mobile';
+    } else if(w <= 1024) {
+        cls = 'mode-tablet';
     }
+    
+    // [수정 1] 기존 클래스를 모두 날리지 않고 mode 클래스만 안전하게 교체
+    document.documentElement.classList.remove('mode-mobile', 'mode-tablet', 'mode-pc');
+    document.documentElement.classList.add(cls);
+    document.documentElement.setAttribute('data-mode', cls.replace('mode-',''));
+    
+    // [수정 2] 모바일 기기 분기 조건문을 제거하고, 모든 환경에서 --vh를 항상 최신화
+    var vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', vh + 'px');
   }
+  
   detect();
-  window.addEventListener('resize', detect);
+  
+  // [수정 3] 모바일 사파리 주소창 높이 변화로 인한 Resize 무한 반복(멈춤 현상) 방지 (Debounce 적용)
+  window.addEventListener('resize', function() {
+    if (resizeTimeout) clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(function() {
+      detect();
+    }, 150); // 0.15초 대기 후 한 번만 실행
+  });
 })();
 </script>
 <style>
